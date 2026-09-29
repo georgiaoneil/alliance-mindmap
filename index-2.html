@@ -1,0 +1,2343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alliance Research Mind Map</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0e0e14;
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  #header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(14,14,20,0.98), transparent);
+  }
+
+  #header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    color: #fff;
+    letter-spacing: 0.02em;
+  }
+
+  #header p {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.45);
+    margin-top: 2px;
+  }
+
+  #legend {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.7);
+  }
+
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  #canvas-wrap {
+    width: 100vw;
+    height: 100vh;
+    cursor: grab;
+  }
+
+  #canvas-wrap:active { cursor: grabbing; }
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .node-circle {
+    transition: filter 0.2s, transform 0.2s;
+    cursor: pointer;
+  }
+
+  .node-circle:hover {
+    filter: brightness(1.3) drop-shadow(0 0 12px currentColor);
+  }
+
+  .edge-line {
+    stroke-opacity: 0.35;
+    stroke-linecap: round;
+    transition: stroke-opacity 0.2s;
+  }
+
+  .node-label {
+    pointer-events: none;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    fill: white;
+    text-anchor: middle;
+    dominant-baseline: central;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  #tooltip {
+    position: fixed;
+    background: rgba(20,20,30,0.95);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 0.8rem;
+    color: #fff;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    max-width: 240px;
+    z-index: 200;
+    backdrop-filter: blur(10px);
+  }
+
+  #tooltip.visible { opacity: 1; }
+
+  #tooltip strong {
+    display: block;
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+    color: #fff;
+  }
+
+  #tooltip span {
+    color: rgba(255,255,255,0.6);
+    font-size: 0.75rem;
+  }
+
+  #controls {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 100;
+  }
+
+  .ctrl-btn {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+  }
+
+  .ctrl-btn:hover { background: rgba(255,255,255,0.15); }
+
+  .hint {
+    position: fixed;
+    bottom: 24px;
+    left: 32px;
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.3);
+  }
+
+  /* ── DETAIL PANEL ── */
+  #detail-panel {
+    position: fixed;
+    top: 0; right: 0;
+    width: 360px;
+    height: 100vh;
+    background: rgba(12,12,20,0.97);
+    border-left: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(20px);
+    z-index: 300;
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #detail-panel.open {
+    transform: translateX(0);
+  }
+
+  #panel-header {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
+  }
+
+  #panel-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.7);
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+  }
+
+  #panel-close:hover { background: rgba(255,255,255,0.14); }
+
+  #panel-category-tag {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+  }
+
+  #panel-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    color: #fff;
+    line-height: 1.3;
+    margin-bottom: 6px;
+  }
+
+  #panel-subtitle {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.45);
+  }
+
+  #panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 24px 24px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+  }
+
+  #panel-body::-webkit-scrollbar { width: 4px; }
+  #panel-body::-webkit-scrollbar-track { background: transparent; }
+  #panel-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+  .project-card {
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    transition: background 0.2s, border-color 0.2s;
+    cursor: default;
+  }
+
+  .project-card:hover {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.13);
+  }
+
+  .project-number {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.3);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+
+  .project-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.4;
+    margin-bottom: 6px;
+  }
+
+  .project-pi {
+    font-size: 0.76rem;
+    color: rgba(255,255,255,0.55);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .project-pi::before {
+    content: '';
+    display: inline-block;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='2'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3C/svg%3E");
+    background-size: 10px;
+    background-repeat: no-repeat;
+    background-position: center;
+    flex-shrink: 0;
+  }
+
+  #panel-empty {
+    padding: 40px 0;
+    text-align: center;
+    color: rgba(255,255,255,0.3);
+    font-size: 0.82rem;
+    display: none;
+  }
+
+  .section-divider {
+    margin: 24px 0 8px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.3);
+  }
+
+  /* ── LINKED PROJECT CARDS ── */
+  #detail-panel { width: min(420px, 100vw); }
+  #panel-filter {
+    width: 100%; margin-top: 14px; padding: 9px 12px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px; color: #fff; font: inherit; font-size: 0.8rem;
+  }
+  #panel-filter::placeholder { color: rgba(255,255,255,0.35); }
+  #panel-filter:focus-visible, .card-toggle:focus-visible, #detail-panel a:focus-visible, .ctrl-btn:focus-visible, #panel-close:focus-visible {
+    outline: 2px solid var(--accent, #fff); outline-offset: 2px;
+  }
+  .card-toggle {
+    all: unset; box-sizing: border-box; display: block; width: 100%; cursor: pointer;
+  }
+  .card-toggle .project-title { display: flex; justify-content: space-between; gap: 12px; }
+  .card-toggle .project-title::after {
+    content: '+'; flex-shrink: 0; color: rgba(255,255,255,0.4); font-weight: 400;
+  }
+  .card-toggle[aria-expanded="true"] .project-title::after { content: '−'; }
+  .project-meta { font-size: 0.7rem; color: rgba(255,255,255,0.4); margin: -2px 0 6px; }
+  .project-pi { flex-wrap: wrap; gap: 4px 10px; }
+  .pi-link { color: rgba(255,255,255,0.8); text-decoration: underline; text-decoration-color: var(--accent, #fff); text-underline-offset: 3px; }
+  .pi-link:hover { color: #fff; }
+  .pi-link.unverified { color: rgba(255,255,255,0.5); text-decoration-style: dotted; text-decoration-color: rgba(255,255,255,0.4); }
+  .card-detail { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+  .card-detail[hidden] { display: none; }
+  .project-summary { font-size: 0.8rem; line-height: 1.55; color: rgba(255,255,255,0.78); margin-bottom: 12px; }
+  .project-summary.empty { color: rgba(255,255,255,0.4); font-style: italic; }
+  .link-group { font-size: 0.72rem; color: rgba(255,255,255,0.45); margin: 10px 0 6px; }
+  .outcome-list { list-style: none; margin: 0; padding: 0; }
+  .outcome-list li { margin: 0 0 8px; font-size: 0.78rem; line-height: 1.4; }
+  .outcome-list a { color: #fff; text-decoration: underline; text-decoration-color: var(--accent, #fff); text-underline-offset: 3px; }
+  .kind { display: inline-block; font-size: 0.62rem; font-weight: 600; padding: 1px 7px; border-radius: 10px; margin-right: 6px;
+          border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.7); vertical-align: 1px; }
+  .kind.publication { border-color: #a78bfa; color: #c4b5fd; }
+  .kind.podcast { border-color: #e85d9c; color: #f29cc2; }
+  .kind.news, .kind.event { border-color: #f4a24a; color: #f9c47e; }
+  .kind.alliance { border-color: #4fa3f7; color: #7fc8fb; }
+  .search-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .search-links a {
+    font-size: 0.72rem; color: rgba(255,255,255,0.75); text-decoration: none;
+    padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.14);
+  }
+  .search-links a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  #panel-key { font-size: 0.7rem; line-height: 1.5; color: rgba(255,255,255,0.38); margin: 22px 0 4px; }
+  #panel-noresults { display: none; padding: 24px 0; text-align: center; color: rgba(255,255,255,0.35); font-size: 0.8rem; }
+  @media (prefers-reduced-motion: reduce) { #detail-panel { transition: none; } }
+  .summary-source { font-size: 0.68rem; color: rgba(255,255,255,0.38); margin: -6px 0 12px; }
+  .search-links a.primary { border-color: var(--accent, #fff); color: #fff; }
+  .pi-link.alliance { text-decoration-thickness: 2px; }
+  .pi-alt { font-size: 0.66rem; color: rgba(255,255,255,0.45); margin-left: 4px; text-decoration: underline; text-underline-offset: 2px; }
+  .pi-alt:hover { color: #fff; }
+  .coinv { font-size: 0.72rem; line-height: 1.45; color: rgba(255,255,255,0.6); margin: 0 0 10px; }
+  .coinv span { color: rgba(255,255,255,0.4); }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>Alliance Research Network</h1>
+    <p>84 Joint Research Projects · Columbia / Sciences Po / École Polytechnique / Paris 1</p>
+  </div>
+  <div id="legend">
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#e85d9c"></div>
+      <span>Core Hub</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#4fa3f7"></div>
+      <span>STEM (Hard Sciences)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#f4a24a"></div>
+      <span>Social Sciences</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#a78bfa"></div>
+      <span>Humanities</span>
+    </div>
+  </div>
+</div>
+
+<div id="canvas-wrap">
+  <svg id="svg"></svg>
+</div>
+
+<div id="tooltip"></div>
+
+<div id="controls">
+  <button class="ctrl-btn" onclick="zoom(1.2)">+</button>
+  <button class="ctrl-btn" onclick="zoom(0.8)">−</button>
+  <button class="ctrl-btn" onclick="resetView()" title="Reset">⌂</button>
+</div>
+
+<div class="hint">Scroll to zoom · Drag to pan · Click any node for projects, researcher pages and outcomes</div>
+
+<!-- DETAIL PANEL -->
+<div id="detail-panel">
+  <div id="panel-header">
+    <button id="panel-close" onclick="closePanel()" aria-label="Close panel">✕</button>
+    <div id="panel-category-tag"></div>
+    <div id="panel-title"></div>
+    <div id="panel-subtitle"></div>
+    <input id="panel-filter" type="search" placeholder="Filter by project title or researcher" aria-label="Filter projects">
+  </div>
+  <div id="panel-body">
+    <div id="panel-empty">No project data available for this node.</div>
+    <div id="panel-projects"></div>
+    <div id="panel-noresults">No projects match that filter. Clear it to see all projects in this field.</div>
+    <p id="panel-key">Names with a thick underline open the researcher's Alliance Program profile, with their department page beside it. Other underlined names open a faculty or current-institution page. Names with a dotted underline open a web search, because no profile page has been verified for them yet. Podcast links marked "topic match" should be checked against the episode's guest list.</p>
+  </div>
+</div>
+
+<script>
+// ── DATA ────────────────────────────────────────────────────────────────────
+
+const COLORS = {
+  center: '#e85d9c',
+  stem: '#4fa3f7',
+  stemSub: '#7fc8fb',
+  social: '#f4a24a',
+  socialSub: '#f9c47e',
+  humanities: '#a78bfa',
+  humanitiesSub: '#c4b5fd',
+};
+
+// Counts from data analysis
+const nodes = [
+  // CENTER
+  { id: 'center', label: 'ALLIANCE\nRESEARCH', count: 84, type: 'center', x: 0, y: 0 },
+
+  // HARD SCIENCES branch (left-upper)
+  { id: 'stem', label: 'STEM', count: 16, type: 'stem', x: -520, y: -260 },
+  { id: 'stem_climate', label: 'CLIMATE\nSCIENCE', count: 6, type: 'stemSub', x: -820, y: -160 },
+  { id: 'stem_physics', label: 'PHYSICS', count: 5, type: 'stemSub', x: -820, y: -320 },
+  { id: 'stem_eng', label: 'ENGINEERING', count: 4, type: 'stemSub', x: -700, y: -460 },
+  { id: 'stem_health', label: 'PUBLIC\nHEALTH', count: 3, type: 'stemSub', x: -960, y: -440 },
+  { id: 'stem_chem', label: 'CHEMISTRY', count: 3, type: 'stemSub', x: -1060, y: -260 },
+  { id: 'stem_ai', label: 'AI &\nDATA SCI', count: 4, type: 'stemSub', x: -560, y: -500 },
+  { id: 'stem_med', label: 'MEDICINE', count: 2, type: 'stemSub', x: -980, y: -120 },
+
+  // SOCIAL SCIENCES branch (right)
+  { id: 'social', label: 'SOCIAL\nSCIENCES', count: 50, type: 'social', x: 560, y: -80 },
+  { id: 'soc_polsci', label: 'POLITICAL\nSCIENCE', count: 24, type: 'socialSub', x: 880, y: -300 },
+  { id: 'soc_econ', label: 'ECONOMICS', count: 13, type: 'socialSub', x: 960, y: 60 },
+  { id: 'soc_soc', label: 'SOCIOLOGY', count: 10, type: 'socialSub', x: 860, y: 240 },
+  { id: 'soc_hist', label: 'HISTORY', count: 6, type: 'socialSub', x: 680, y: 380 },
+  { id: 'soc_climate', label: 'CLIMATE\nPOLICY', count: 5, type: 'socialSub', x: 1060, y: -180 },
+  { id: 'soc_law', label: 'LAW', count: 7, type: 'socialSub', x: 1080, y: -420 },
+  { id: 'soc_urban', label: 'URBAN\nSTUDIES', count: 4, type: 'socialSub', x: 720, y: -420 },
+  { id: 'soc_health', label: 'PUBLIC\nHEALTH', count: 3, type: 'socialSub', x: 1060, y: 360 },
+  { id: 'soc_gender', label: 'GENDER\nSTUDIES', count: 1, type: 'socialSub', x: 980, y: 460 },
+
+  // HUMANITIES branch (lower-left)
+  { id: 'human', label: 'HUMANITIES', count: 18, type: 'humanities', x: -280, y: 420 },
+  { id: 'hum_hist', label: 'HISTORY', count: 8, type: 'humanitiesSub', x: -520, y: 580 },
+  { id: 'hum_phil', label: 'PHILOSOPHY', count: 5, type: 'humanitiesSub', x: -80, y: 680 },
+  { id: 'hum_art', label: 'ART\nHISTORY', count: 3, type: 'humanitiesSub', x: -700, y: 440 },
+  { id: 'hum_film', label: 'FILM &\nMEDIA', count: 3, type: 'humanitiesSub', x: 140, y: 660 },
+  { id: 'hum_lit', label: 'LITERATURE', count: 2, type: 'humanitiesSub', x: -360, y: 760 },
+  { id: 'hum_music', label: 'MUSIC', count: 1, type: 'humanitiesSub', x: -800, y: 600 },
+  { id: 'hum_arch', label: 'ARCHAEOLOGY', count: 1, type: 'humanitiesSub', x: -560, y: 720 },
+];
+
+const edges = [
+  // center to main
+  ['center', 'stem'],
+  ['center', 'social'],
+  ['center', 'human'],
+  // stem subs
+  ['stem', 'stem_climate'],
+  ['stem', 'stem_physics'],
+  ['stem', 'stem_eng'],
+  ['stem', 'stem_health'],
+  ['stem', 'stem_chem'],
+  ['stem', 'stem_ai'],
+  ['stem', 'stem_med'],
+  // social subs
+  ['social', 'soc_polsci'],
+  ['social', 'soc_econ'],
+  ['social', 'soc_soc'],
+  ['social', 'soc_hist'],
+  ['social', 'soc_climate'],
+  ['social', 'soc_law'],
+  ['social', 'soc_urban'],
+  ['social', 'soc_health'],
+  ['social', 'soc_gender'],
+  // humanities subs
+  ['human', 'hum_hist'],
+  ['human', 'hum_phil'],
+  ['human', 'hum_art'],
+  ['human', 'hum_film'],
+  ['human', 'hum_lit'],
+  ['human', 'hum_music'],
+  ['human', 'hum_arch'],
+];
+
+const nodeInfo = {
+  center: { desc: '84 Joint Research Projects across Columbia, Sciences Po, École Polytechnique & Paris 1', projects: 84 },
+  stem: { desc: 'Hard science research across climate, physics, engineering, AI, and public health', projects: 16 },
+  stem_climate: { desc: 'Atmospheric science, climate change, weather dynamics, soil moisture feedbacks', projects: 6 },
+  stem_physics: { desc: 'Theoretical physics, correlated electron systems, organic transistors, social network dynamics', projects: 5 },
+  stem_eng: { desc: 'Civil, biomedical, and sustainable engineering including transport and smart cities', projects: 4 },
+  stem_health: { desc: 'Lead exposure regulation, environmental health, geochemistry and public health', projects: 3 },
+  stem_chem: { desc: 'Environmental chemistry, biogeochemistry, groundwater geochemistry', projects: 3 },
+  stem_ai: { desc: 'Machine learning, physics law discovery, AI for transportation and cities', projects: 4 },
+  stem_med: { desc: 'Biomedical engineering, regenerative medicine, dental and craniofacial research', projects: 2 },
+  social: { desc: 'The largest cluster: 50 projects across political science, economics, sociology, law & more', projects: 50 },
+  soc_polsci: { desc: 'International relations, comparative politics, democracy, migration, colonialism, identity politics', projects: 24 },
+  soc_econ: { desc: 'Industrial policy, labor economics, inequality, gig economy, urban economics', projects: 13 },
+  soc_soc: { desc: 'Race, ethnicity, inequality, stratification, elites, urban sociology', projects: 10 },
+  soc_hist: { desc: 'Transnational history, military regimes, diaspora, African history', projects: 6 },
+  soc_climate: { desc: 'Climate litigation, resettlement, legal tools, globalization and climate', projects: 5 },
+  soc_law: { desc: 'Constitutional law, IP, comparative online platform regulation, climate law', projects: 7 },
+  soc_urban: { desc: 'City demography, water delivery, sustainable transport, urban infrastructure', projects: 4 },
+  soc_health: { desc: 'Bioethics, COVID frontline workers, neonatal ethics', projects: 3 },
+  soc_gender: { desc: 'Gender equality, human rights, women in crisis', projects: 1 },
+  human: { desc: '18 humanities projects spanning history, philosophy, art history, film, literature and music', projects: 18 },
+  hum_hist: { desc: 'Medieval Europe, early modern knowledge, French archives, colonial & transnational history', projects: 8 },
+  hum_phil: { desc: 'Ethics, ancient philosophy, identity politics, blame, recognition and reparations', projects: 5 },
+  hum_art: { desc: 'Art history since 1700, museum studies, cosmogonic illustrations, women artists', projects: 3 },
+  hum_film: { desc: 'Post-cinema subjectivity, documentary theory, visual democracy, political film', projects: 3 },
+  hum_lit: { desc: 'Enlightenment literature, early modern librarians, comparative literature', projects: 2 },
+  hum_music: { desc: 'Medieval music, monastic culture, manuscript studies, liturgy', projects: 1 },
+  hum_arch: { desc: 'Alchemy, Renaissance craft, premodern European material culture', projects: 1 },
+};
+
+// ── PROJECT DATA ─────────────────────────────────────────────────────────────
+
+const PROJECT_DATA = {
+  "hum_hist": [
+    { pi: "Barry Bergdoll", title: "Léon Vaudoyer" },
+    { pi: "Pablo Piccato", title: "Beyond National History" },
+    { pi: "Pamela H. Smith", title: "Invisible Knowledge in Early Modern Europe" },
+    { pi: "Joanna Stalnaker", title: "Beaumarchais & America" },
+    { pi: "Pier Mattia Tommasino", title: "Lives of Early Modern Librarians" },
+    { pi: "Anne Higonnet", title: "Museum Studies New Programs" },
+    { pi: "Adam Kosto", title: "Competition in Medieval Europe" },
+    { pi: "Diane Bodart", title: "Scribbles and Scribbling" },
+    { pi: "Mark M. Anderson", title: "Social Sciences and the Danger of Literature" },
+    { pi: "Carol Gluck", title: "Post World War II" }
+  ],
+  "hum_art": [
+    { pi: "Barry Bergdoll", title: "Léon Vaudoyer" },
+    { pi: "Anne Higonnet", title: "Museum Studies New Programs" },
+    { pi: "Diane Bodart", title: "Scribbles and Scribbling" }
+  ],
+  "hum_arch": [
+    { pi: "Barry Bergdoll", title: "Léon Vaudoyer" },
+    { pi: "Elizabeth Povinelli", title: "Digging Up the Cultural Roots" }
+  ],
+  "hum_phil": [
+    { pi: "Carol Rovane", title: "Philosophy of Blame" },
+    { pi: "Carol Rovane", title: "Blame and Regulation" },
+    { pi: "Nico Baumbach", title: "Subjectivity in the Post-Cinema Age" },
+    { pi: "Matthew L. Jones", title: "\"What is an Author?\"" },
+    { pi: "Axel Honneth", title: "Recognition and Reparations" },
+    { pi: "Katja Vogt", title: "Desiring the Good in Plato" },
+    { pi: "Akeel Bilgrami", title: "Identity Politics" },
+    { pi: "Philip Kitcher", title: "Science-Based Policy and Democratic Deliberation" }
+  ],
+  "hum_film": [
+    { pi: "Nico Baumbach", title: "Subjectivity in the Post-Cinema Age" },
+    { pi: "Sudipta Kaviraj", title: "Visual Field of Democracy in India" },
+    { pi: "Jane Gaines", title: "Documentary Art" }
+  ],
+  "hum_lit": [
+    { pi: "Joanna Stalnaker", title: "Beaumarchais & America" },
+    { pi: "Mark M. Anderson", title: "Social Sciences and the Danger of Literature" }
+  ],
+  "hum_music": [
+    { pi: "Susan Boynton", title: "The Implications of Time" }
+  ],
+  "soc_polsci": [
+    { pi: "Pablo Piccato", title: "Beyond National History" },
+    { pi: "Mae Ngai", title: "Migration and Citizenship in the U.S. and Europe" },
+    { pi: "Josh Whitford", title: "Political Economies of Contemporary Industrial Policymaking" },
+    { pi: "Duy Linh Tu", title: "Cambodian, Laotian and Vietnamese Refugees" },
+    { pi: "Claudio Lomnitz", title: "Thriving Economy Amid Armed Violence" },
+    { pi: "Sudipta Kaviraj", title: "Visual Field of Democracy in India" },
+    { pi: "Jack Snyder", title: "Hegemony and Transatlantic Relations" },
+    { pi: "Emmanuelle Saada", title: "Colonialisms and Imperialisms: Comparisons" },
+    { pi: "Sudhir Venkatesh", title: "Elites Research Network" },
+    { pi: "Dorian Warren", title: "Elites Research Network" },
+    { pi: "Mamadou Diouf", title: "Globalization and Politics in Africa" },
+    { pi: "Eduardo Moncada", title: "Conference on Criminal Governance" },
+    { pi: "Elizabeth Povinelli", title: "Digging Up the Cultural Roots" },
+    { pi: "Sharyn O'Halloran", title: "Public Authority and Finance" },
+    { pi: "Shamus Khan", title: "Elites Research Network" },
+    { pi: "Dana R. Fisher", title: "European Politics in a Comparative Perspective" },
+    { pi: "Peter Rosenblum", title: "Human Rights and Economic Globalization" },
+    { pi: "Katherine Pratt Ewing", title: "Punjab at the Limits of History" },
+    { pi: "Karen Barkey", title: "Ethno-religious Identity at Columbia University" },
+    { pi: "Philip Kitcher", title: "Science-Based Policy and Democratic Deliberation" },
+    { pi: "Katherine Pratt Ewing", title: "Populism in America and the Middle East" },
+    { pi: "Coralie Bryant", title: "French and American NGOs" },
+    { pi: "Alfred Stepan", title: "Pakistan: The Most Dangerous Decade" },
+    { pi: "Alfred Stepan", title: "Diverse Models of Secularism" }
+  ],
+  "soc_econ": [
+    { pi: "Jennifer C. Lena", title: "Occupational Identity and the Gig Economy" },
+    { pi: "Donald Davis", title: "Demography and Cities" },
+    { pi: "Jacqueline Klopp", title: "Water Delivery in Indian Cities" },
+    { pi: "Claudio Lomnitz", title: "Thriving Economy Amid Armed Violence" },
+    { pi: "Bernard Salanie", title: "Competitive Equilibrium with Moral Hazard" },
+    { pi: "Edmund Phelps", title: "Finance, Capitalism and Redistribution" },
+    { pi: "George Bermann", title: "Extraterritorial Application of National Legal Norms" },
+    { pi: "Sharyn O'Halloran", title: "Public Authority and Finance" },
+    { pi: "Shamus Khan", title: "Elites Research Network" },
+    { pi: "Perry Mehrling", title: "Martingale Approach" },
+    { pi: "Peter Rosenblum", title: "Human Rights and Economic Globalization" },
+    { pi: "David Jestaz", title: "Finance, Capitalism and Redistribution of Wealth" },
+    { pi: "Catherine Thomas", title: "Multinational Firms' Production Decisions" }
+  ],
+  "soc_soc": [
+    { pi: "Jennifer Lee", title: "Anti-Asian Hate Compared" },
+    { pi: "Kristina Orfali", title: "Frontline Healthcare Workers During the Covid Pandemic" },
+    { pi: "Thomas DiPrete", title: "Joint Course: Race, Discrimination" },
+    { pi: "Yasmine Ergas", title: "Women in Times of Crisis" },
+    { pi: "Sudhir Venkatesh", title: "Elites Research Network" },
+    { pi: "Dorian Warren", title: "Elites Research Network" },
+    { pi: "Josh Whitford", title: "Territories of the Economy" },
+    { pi: "Shamus Khan", title: "Elites Research Network" },
+    { pi: "Karen Barkey", title: "Ethno-religious Identity at Columbia University" },
+    { pi: "Coralie Bryant", title: "French and American NGOs" }
+  ],
+  "soc_hist": [
+    { pi: "Sandra Schmidt", title: "Combatting Racism and Antisemitism" },
+    { pi: "Pamela H. Smith", title: "Modes of Writing, Drawing, and Modeling" },
+    { pi: "Gregory Mann", title: "Military and Civilian Regimes Amidst Foreign Intervention" },
+    { pi: "Duy Linh Tu", title: "Cambodian, Laotian and Vietnamese Refugees" },
+    { pi: "Mae Ngai", title: "Migration and Citizenship in the US and Europe" },
+    { pi: "David K. Rosner", title: "Silicosis" },
+    { pi: "Katherine Pratt Ewing", title: "Punjab at the Limits of History" }
+  ],
+  "soc_law": [
+    { pi: "Jamal Greene", title: "Comparing Inside the Courts" },
+    { pi: "Michael Gerrard", title: "Climate Change Risks" },
+    { pi: "Jane C. Ginsburg", title: "Comparative Aspects of Online Platforms" },
+    { pi: "Adam Sobel", title: "Climate Ethics" },
+    { pi: "Michael Burger", title: "Climate Change Litigation" },
+    { pi: "Emmanuelle Saada", title: "Colonialisms and Imperialisms: Comparisons" },
+    { pi: "George Bermann", title: "Extraterritorial Application of National Legal Norms" }
+  ],
+  "soc_climate": [
+    { pi: "Michael Gerrard", title: "Climate Change Risks" },
+    { pi: "Michael Gerrard", title: "Research Agenda for Climate Change Resettlement" },
+    { pi: "Jacqueline Klopp", title: "Water Delivery in Indian Cities" },
+    { pi: "Jacqueline Klopp", title: "Globalization and Politics in Africa" },
+    { pi: "Michael Burger", title: "Climate Change Litigation" }
+  ],
+  "soc_urban": [
+    { pi: "Donald Davis", title: "Demography and Cities" },
+    { pi: "Jacqueline Klopp", title: "Water Delivery in Indian Cities" },
+    { pi: "Sudhir Venkatesh", title: "Elites Research Network" },
+    { pi: "Eduardo Moncada", title: "Conference on Criminal Governance" }
+  ],
+  "soc_health": [
+    { pi: "Kristina Orfali", title: "Frontline Healthcare Workers During the Covid Pandemic" },
+    { pi: "Constance Nathanson", title: "HIV Blood Contamination" },
+    { pi: "Constance Nathanson", title: "Public Health Policy in France" },
+    { pi: "Constance Nathanson", title: "Disaster and Innovation in Organizations" }
+  ],
+  "soc_gender": [
+    { pi: "Yasmine Ergas", title: "Women in Times of Crisis" }
+  ],
+  "stem_climate": [
+    { pi: "Alexander van Geen", title: "The Evolution of Environmental Regulation" },
+    { pi: "Adam Sobel", title: "Climate Ethics: Negotiating Values" },
+    { pi: "Adam Sobel", title: "Soil Moisture–Precipitation Feedbacks" },
+    { pi: "Xuan Sharon Di", title: "SiNERGI: Sustainable Cities Network" },
+    { pi: "Robert Chen", title: "Multiple Risks in Sustainable Development" },
+    { pi: "David K. Rosner", title: "Silicosis" }
+  ],
+  "stem_physics": [
+    { pi: "Andrew Millis", title: "Charge Transfer Physics in Correlated Electron Systems" },
+    { pi: "Pierre Gentine", title: "Soil Moisture–Precipitation Feedbacks" },
+    { pi: "Xiaoyang Zhu", title: "Ultrafast Carrier Dynamics" },
+    { pi: "Guillaume Bal", title: "Mathematical Modeling in Multi-Physics Imaging" },
+    { pi: "Kenneth B. Eisenthal", title: "Biological Membrane/Water Interfaces" }
+  ],
+  "stem_eng": [
+    { pi: "Helen H. Lu", title: "Generating Renewable Eco-Friendly Materials" },
+    { pi: "Xuan Sharon Di", title: "SiNERGI: Sustainable Cities Network" },
+    { pi: "Scott Banta", title: "Improved Biofuel Cells" },
+    { pi: "David Kalfa", title: "Engineering Pediatric Cardiac Valves that Grow" }
+  ],
+  "stem_ai": [
+    { pi: "Ansaf Salleb-Aouissi", title: "Re-discovering (Astro)Physics Laws Using Machine Learning" },
+    { pi: "Xuan Sharon Di", title: "SiNERGI: Sustainable Cities Network with AI" },
+    { pi: "Jane C. Ginsburg", title: "Comparative Aspects of Online Platforms (AI/Law)" },
+    { pi: "Matthew L. Jones", title: "\"What is an Author?\" (AI & Authorship)" }
+  ],
+  "stem_health": [
+    { pi: "Alexander van Geen", title: "The Evolution of Environmental Regulation" },
+    { pi: "David K. Rosner", title: "Silicosis" },
+    { pi: "Stephane Helleringer", title: "Maternal Mortality" }
+  ],
+  "stem_chem": [
+    { pi: "Pierre Gentine", title: "Soil Moisture–Precipitation Feedbacks" },
+    { pi: "Scott Banta", title: "Improved Biofuel Cells" },
+    { pi: "Xiaoyang Zhu", title: "Ultrafast Carrier Dynamics" }
+  ],
+  "stem_med": [
+    { pi: "Helen H. Lu", title: "Generating Renewable Eco-Friendly Materials" },
+    { pi: "David Kalfa", title: "Engineering Pediatric Cardiac Valves that Grow" }
+  ],
+  "stem": [
+    { pi: "Ansaf Salleb-Aouissi", title: "Re-discovering (Astro)Physics Laws" },
+    { pi: "Andrew Millis", title: "Charge Transfer Physics" },
+    { pi: "Adam Sobel", title: "Climate Ethics" },
+    { pi: "Adam Sobel", title: "Soil Moisture" },
+    { pi: "Alexander van Geen", title: "Environmental Regulation" },
+    { pi: "Helen H. Lu", title: "Biomedical Engineering" },
+    { pi: "Xuan Sharon Di", title: "Sustainable Cities Network" },
+    { pi: "Pierre Gentine", title: "Soil Moisture" },
+    { pi: "David Kalfa", title: "Pediatric Cardiac Valves" },
+    { pi: "Scott Banta", title: "Biofuel Cells" },
+    { pi: "Stephane Helleringer", title: "Maternal Mortality" },
+    { pi: "David K. Rosner", title: "Silicosis" },
+    { pi: "Xiaoyang Zhu", title: "Ultrafast Carrier Dynamics" },
+    { pi: "Guillaume Bal", title: "Multi-Physics Imaging" },
+    { pi: "Kenneth B. Eisenthal", title: "Biological Membrane Interfaces" },
+    { pi: "Robert Chen", title: "Multiple Risks in Sustainable Development" }
+  ]
+};
+
+
+// ── LINKS: verified researcher profiles, project summaries and outcomes ─────
+// Summaries are paraphrased from the Alliance's joint-project grant records.
+// To link a project to its own page, paste the URL into that project's "page" field.
+// Every URL below was checked against a live search result or directory page (Sept 2026).
+const LINKS = {
+ "people": {
+  "Barry Bergdoll": {
+   "url": "https://alliance.columbia.edu/directory/barry-george-bergdoll",
+   "source": "Alliance Program profile",
+   "alliance": true,
+   "alt": "https://www.arch.columbia.edu/faculty/150-barry-bergdoll",
+   "altSource": "Columbia GSAPP faculty page"
+  },
+  "Pablo Piccato": {
+   "url": "https://alliance.columbia.edu/directory/pablo-piccato",
+   "source": "Alliance Program profile",
+   "alliance": true,
+   "check": true,
+   "alt": "https://history.columbia.edu/person/piccato-pablo-a/",
+   "altSource": "Columbia History"
+  },
+  "Pamela H. Smith": {
+   "url": "https://history.columbia.edu/person/pamela-h-smith/",
+   "source": "Columbia History"
+  },
+  "Adam Kosto": {
+   "url": "https://history.columbia.edu/person/kosto-adam/",
+   "source": "Columbia History"
+  },
+  "Carol Gluck": {
+   "url": "https://history.columbia.edu/person/gluck-carol/",
+   "source": "Columbia History (emerita)"
+  },
+  "Mae Ngai": {
+   "url": "https://alliance.columbia.edu/directory/mae-ngai",
+   "source": "Alliance Program profile",
+   "alliance": true,
+   "alt": "https://history.columbia.edu/person/ngai-mae/",
+   "altSource": "Columbia History (emerita)"
+  },
+  "David K. Rosner": {
+   "url": "https://history.columbia.edu/person/rosner-david-k/",
+   "source": "Columbia History (in memoriam)"
+  },
+  "Gregory Mann": {
+   "url": "https://alliance.columbia.edu/directory/gregory-mann",
+   "source": "Alliance Program profile",
+   "alliance": true,
+   "alt": "https://history.columbia.edu/person/mann-gregory/",
+   "altSource": "Columbia History"
+  },
+  "Claudio Lomnitz": {
+   "url": "https://history.columbia.edu/person/lomnitz-claudio-o/",
+   "source": "Columbia History / Anthropology"
+  },
+  "Emmanuelle Saada": {
+   "url": "https://history.columbia.edu/person/saada-emmanuelle/",
+   "source": "Columbia History / French"
+  },
+  "Mamadou Diouf": {
+   "url": "https://alliance.columbia.edu/directory/mamadou-diouf",
+   "source": "Alliance Program profile",
+   "alliance": true,
+   "check": true,
+   "alt": "https://history.columbia.edu/person/diouf-mamadou-o/",
+   "altSource": "Columbia History / MESAAS"
+  },
+  "Akeel Bilgrami": {
+   "url": "https://philosophy.columbia.edu/content/akeel-bilgrami",
+   "source": "Columbia Philosophy"
+  },
+  "Axel Honneth": {
+   "url": "https://philosophy.columbia.edu/content/axel-honneth",
+   "source": "Columbia Philosophy"
+  },
+  "Philip Kitcher": {
+   "url": "https://philosophy.columbia.edu/node/206",
+   "source": "Columbia Philosophy (emeritus)"
+  },
+  "Carol Rovane": {
+   "url": "https://philosophy.columbia.edu/content/carol-rovane",
+   "source": "Columbia Philosophy"
+  },
+  "Katja Vogt": {
+   "url": "https://philosophy.columbia.edu/content/katja-vogt",
+   "source": "Columbia Philosophy"
+  },
+  "Thomas DiPrete": {
+   "url": "https://sociology.columbia.edu/content/thomas-diprete",
+   "source": "Columbia Sociology"
+  },
+  "Jennifer Lee": {
+   "url": "https://sociology.columbia.edu/content/jennifer-lee",
+   "source": "Columbia Sociology"
+  },
+  "Jennifer C. Lena": {
+   "url": "https://sociology.columbia.edu/content/jennifer-c-lena",
+   "source": "Columbia Sociology / Teachers College"
+  },
+  "Sudhir Venkatesh": {
+   "url": "https://sociology.columbia.edu/content/sudhir-venkatesh",
+   "source": "Columbia Sociology"
+  },
+  "Josh Whitford": {
+   "url": "https://sociology.columbia.edu/content/josh-whitford",
+   "source": "Columbia Sociology"
+  },
+  "Jamal Greene": {
+   "url": "https://www.law.columbia.edu/faculty/jamal-greene",
+   "source": "Columbia Law School"
+  },
+  "George Bermann": {
+   "url": "https://alliance.columbia.edu/directory/george-bermann",
+   "source": "Alliance Program profile",
+   "alliance": true,
+   "check": true,
+   "alt": "https://www.law.columbia.edu/faculty/george-bermann",
+   "altSource": "Columbia Law School"
+  },
+  "Jane C. Ginsburg": {
+   "url": "https://alliance.columbia.edu/directory/jane-c-ginsburg",
+   "source": "Alliance Program profile",
+   "alliance": true,
+   "check": true,
+   "alt": "https://www.law.columbia.edu/faculty/jane-c-ginsburg",
+   "altSource": "Columbia Law School"
+  },
+  "Michael Gerrard": {
+   "url": "https://alliance.columbia.edu/directory/michael-b-gerrard",
+   "source": "Alliance Program profile",
+   "alliance": true,
+   "check": true,
+   "alt": "https://people.climate.columbia.edu/users/profile/michael-gerrard",
+   "altSource": "Columbia Climate School"
+  },
+  "Michael Burger": {
+   "url": "https://people.climate.columbia.edu/users/profile/michael-burger",
+   "source": "Columbia Climate School"
+  },
+  "Adam Sobel": {
+   "url": "https://lamont.columbia.edu/directory/adam-sobel",
+   "source": "Lamont-Doherty Earth Observatory"
+  },
+  "Alexander van Geen": {
+   "url": "http://www.ldeo.columbia.edu/~avangeen/",
+   "source": "Personal research page (LDEO)"
+  },
+  "Donald Davis": {
+   "url": "https://econ.columbia.edu/econpeople/donald-davis/",
+   "source": "Columbia Economics"
+  },
+  "Bernard Salanie": {
+   "url": "https://econ.columbia.edu/econpeople/bernard-salanie",
+   "source": "Columbia Economics"
+  },
+  "Xuan Sharon Di": {
+   "url": "https://alliance.columbia.edu/directory/sharon-di",
+   "source": "Alliance Program profile",
+   "alliance": true,
+   "check": true,
+   "alt": "https://datascience.columbia.edu/people/sharon-di/",
+   "altSource": "Columbia Data Science Institute"
+  },
+  "Diane Bodart": {
+   "url": "https://arthistory.columbia.edu/content/diane-bodart",
+   "source": "Columbia Art History"
+  },
+  "Anne Higonnet": {
+   "url": "https://arthistory.barnard.edu/profiles/anne-higonnet",
+   "source": "Barnard Art History"
+  },
+  "Nico Baumbach": {
+   "url": "https://icls.columbia.edu/icls-people/nico-baumbach",
+   "source": "Columbia ICLS"
+  },
+  "Karen Barkey": {
+   "url": "http://karenbarkey.com",
+   "source": "Personal website"
+  },
+  "David Kalfa": {
+   "url": "https://www.congenitalheart.cuimc.columbia.edu/node/61",
+   "source": "Columbia Pediatric Heart Center"
+  },
+  "Jack Snyder": {
+   "url": "https://polisci.columbia.edu/node/34",
+   "source": "Columbia Political Science"
+  },
+  "Sharyn O'Halloran": {
+   "url": "https://polisci.columbia.edu/node/32",
+   "source": "Columbia Political Science"
+  },
+  "Constance Nathanson": {
+   "url": "https://professorsemeritus.columbia.edu/node/661",
+   "source": "Columbia Professors Emeriti"
+  },
+  "Pierre Gentine": {
+   "url": "https://www.engineering.columbia.edu/faculty-staff/directory/pierre-gentine",
+   "source": "Columbia Engineering"
+  },
+  "Ansaf Salleb-Aouissi": {
+   "url": "https://www.engineering.columbia.edu/faculty-staff/directory/ansaf-salleb-aouissi",
+   "source": "Columbia Engineering"
+  },
+  "Helen H. Lu": {
+   "url": "https://www.engineering.columbia.edu/faculty-staff/directory/helen-h-lu",
+   "source": "Columbia Engineering"
+  },
+  "Scott Banta": {
+   "url": "https://www.engineering.columbia.edu/faculty-staff/directory/scott-banta",
+   "source": "Columbia Engineering"
+  },
+  "Xiaoyang Zhu": {
+   "url": "https://scholar.google.com/citations?user=-DhgqkAAAAAJ&hl=en",
+   "source": "Google Scholar profile (Columbia Chemistry)"
+  },
+  "Kenneth B. Eisenthal": {
+   "url": "https://www.chem.columbia.edu/news/professor-kenneth-b-eisenthal-1933-2024",
+   "source": "Columbia Chemistry (in memoriam)"
+  },
+  "Joanna Stalnaker": {
+   "url": "https://french.columbia.edu/content/joanna-stalnaker",
+   "source": "Columbia French"
+  },
+  "Pier Mattia Tommasino": {
+   "url": "https://italian.columbia.edu/content/pier-mattia-tommasino",
+   "source": "Columbia Italian"
+  },
+  "Elizabeth Povinelli": {
+   "url": "https://anthropology.columbia.edu/content/elizabeth-povinelli",
+   "source": "Columbia Anthropology"
+  },
+  "Susan Boynton": {
+   "url": "https://music.columbia.edu/bios/susan-boynton",
+   "source": "Columbia Music"
+  },
+  "Katherine Pratt Ewing": {
+   "url": "https://religion.columbia.edu/content/katherine-ewing",
+   "source": "Columbia Religion (emerita)"
+  },
+  "Matthew L. Jones": {
+   "url": "https://history.princeton.edu/people/matthew-l-jones",
+   "source": "Princeton History (formerly Columbia)"
+  },
+  "Yasmine Ergas": {
+   "url": "https://www.sipa.columbia.edu/communities-connections/faculty/yasmine-ergas",
+   "source": "Columbia SIPA"
+  },
+  "Jacqueline Klopp": {
+   "url": "https://people.climate.columbia.edu/users/profile/jacqueline-m-klopp",
+   "source": "Columbia Climate School"
+  },
+  "Eduardo Moncada": {
+   "url": "https://polisci.barnard.edu/profiles/eduardo-moncada",
+   "source": "Barnard Political Science"
+  },
+  "Robert Chen": {
+   "url": "https://www.datascience.columbia.edu/robert-s-chen",
+   "source": "Columbia Data Science Institute (retired from CIESIN)"
+  },
+  "Kristina Orfali": {
+   "url": "https://www.pediatrics.columbia.edu/profile/kristina-orfali-phd",
+   "source": "Columbia Pediatrics"
+  },
+  "Stephane Helleringer": {
+   "url": "https://nyuad.nyu.edu/en/academics/divisions/social-science/faculty/stephane-helleringer.html",
+   "source": "NYU Abu Dhabi (formerly Columbia)"
+  },
+  "Edmund Phelps": {
+   "url": "https://capitalism.columbia.edu/directory/edmund-phelps",
+   "source": "Columbia Center on Capitalism and Society"
+  },
+  "Shamus Khan": {
+   "url": "https://sociology.princeton.edu/people/shamus-rahman-khan",
+   "source": "Princeton Sociology (formerly Columbia)"
+  },
+  "Andrew Millis": {
+   "url": "https://alliance.columbia.edu/directory/andrew-millis",
+   "source": "Alliance Program profile",
+   "alliance": true
+  },
+  "Sudipta Kaviraj": {
+   "url": "https://alliance.columbia.edu/directory/sudipta-kaviraj",
+   "source": "Alliance Program profile",
+   "alliance": true,
+   "check": true,
+   "alt": "https://columbia.edu/cu/mesaas/faculty/directory/kaviraj.html",
+   "altSource": "Columbia MESAAS"
+  }
+ },
+ "projects": {
+  "vaudoyer": {
+   "title": "Overlapping Perspectives on an Artistic Correspondence: Editing the Roman Letters of Léon and A.L.T. Vaudoyer (1826–32)",
+   "summary": "A critical edition of the letters exchanged between the architect Léon Vaudoyer in Rome and his architect father in Paris, read by historians of architecture, language and politics as both documents and Romantic letter-writing.",
+   "year": "Call 2018",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2018",
+   "call": "Call 2018",
+   "coinvestigators": "Barry Bergdoll, Jean-Philippe Garric"
+  },
+  "national_history": {
+   "title": "Beyond National History. State Formation in Transnational Perspective: Institutions, Political Practices, Society, Migration",
+   "summary": "The fourth Paris 1–Columbia Latin American history workshop, bringing together faculty and advanced doctoral students to workshop research in progress, with public lectures.",
+   "year": "Call 2019",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2019",
+   "call": "Call 2019",
+   "coinvestigators": "Pablo Piccato, Annick Lempérière"
+  },
+  "invisible_knowledge": {
+   "title": "Invisible Knowledge in Early Modern Europe",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "beaumarchais": {
+   "title": "Beaumarchais & America: Business, Political, and Cultural Scripts",
+   "summary": "A workshop on the playwright Beaumarchais's many links to America, from his role in the Revolutionary War to his commercial and diplomatic schemes, timed for the 250th anniversary of the Declaration of Independence and newly opened archives at the French national library.",
+   "year": "Call 2023",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2023",
+   "call": "Call 2023",
+   "coinvestigators": "Martin Giraudeau, Laurence Marie, Joanna Stalnaker"
+  },
+  "librarians": {
+   "title": "The Lives of Early Modern Librarians: Actions, Networks, and Emotions (1400–1800)",
+   "summary": "A workshop on the lives, networks and emotions of the people who ran libraries between 1400 and 1800, across Ottoman, Iberian, Atlantic, Mediterranean and European cultures of knowledge.",
+   "year": "Call 2024",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2024",
+   "call": "Call 2024",
+   "coinvestigators": "Pier Mattia Tommasino, Guillaume Calafat, Fabien Montcher"
+  },
+  "museum": {
+   "title": "Museum Studies New Programs",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "medieval_comp": {
+   "title": "Competition in Medieval Europe",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "scribbles": {
+   "title": "Scribbles and Scribbling",
+   "summary": "Builds a digital platform to inventory and map early modern scribbles and doodles, found in popular images and in the margins of artworks, developed through a graduate seminar with Paris 1.",
+   "year": "Call 2014",
+   "outcomes": [
+    {
+     "label": "Scribbling exhibition at the Villa Medici, Rome, later travelling to Paris (Columbia Art History newsletter, 2022)",
+     "url": "https://arthistory.columbia.edu/sites/default/files/content/dept-publication/2022.pdf",
+     "kind": "news"
+    }
+   ],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2014",
+   "call": "Call 2014",
+   "coinvestigators": "Diane Bodart, Philippe Morel, Francesca Alberti"
+  },
+  "danger_lit": {
+   "title": "Social Sciences and the Danger of Literature: A Cultural History of Knowledge",
+   "summary": "A two-year doctoral seminar linking Sciences Po's history centre with Columbia's French and Germanic departments, asking how literature and the social sciences came to be treated as separate fields.",
+   "year": "Call 2014",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2014",
+   "call": "Call 2014",
+   "coinvestigators": "Mark M. Anderson, Vincent Debaene, Emmanuelle Loyer"
+  },
+  "postwar": {
+   "title": "1945–2025. War and Post-War(s): Contemporary Perspectives on the Post-WWII World",
+   "summary": "For the 80th anniversary of the end of World War II, conferences in Paris and New York (part of a series including Berlin) reassessing the war and postwar legacy in light of today's transformations.",
+   "year": "Call 2024",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2024",
+   "call": "Call 2024",
+   "coinvestigators": "Fabien Théofilakis, Carol Gluck, Claudia Weber"
+  },
+  "digging": {
+   "title": "Digging Up the Cultural Roots of (Late) Liberal Subjectivities",
+   "summary": "Combines research, new teaching, and the translation and circulation of Elizabeth Povinelli's work.",
+   "year": "Call 2017",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2017",
+   "call": "Call 2017",
+   "coinvestigators": "Elizabeth A. Povinelli, Aline Caillet, Marco Renzo Dell'Omodarme"
+  },
+  "blame": {
+   "title": "The Philosophy of Blame: Reflections on the Ethics and Politics of Blame",
+   "summary": "A thematic doctoral workshop between the Paris 1 and Columbia philosophy departments on the nature, value and disvalue of blame, bringing empirical perspectives into philosophy, with papers aimed at an edited volume or journal special issue.",
+   "year": "Call 2018",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2018",
+   "call": "Call 2018",
+   "coinvestigators": "Carol Rovane, Laurent Jaffro"
+  },
+  "postcinema": {
+   "title": "Reshaping our Digital Interactions: Subjectivity in the Post-Cinema Age",
+   "summary": "A two-day symposium of screenings, artists' talks and lectures on how digital technology shapes subjectivity, following an earlier Alliance program on expanded documentary and aiming at a bilingual journal special issue.",
+   "year": "Call 2020",
+   "outcomes": [
+    {
+     "label": "Faculty Distinction listing of the Alliance Program grant",
+     "url": "https://facultydistinction.fas.columbia.edu/?p=2814",
+     "kind": "news"
+    }
+   ],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2020",
+   "call": "Call 2020",
+   "coinvestigators": "Nico Baumbach, Judith Michalet"
+  },
+  "author": {
+   "title": "\"What is an Author?\"",
+   "summary": "Revisits Michel Foucault's question in the age of digital media, open-source licensing and AI, with French and US collaborators across disciplines.",
+   "year": "Call 2022",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2022",
+   "call": "Call 2022",
+   "coinvestigators": "Matthew Jones, Alain Pottage"
+  },
+  "recognition": {
+   "title": "Facing Historic Injustices: Recognition and Reparations",
+   "summary": "A Paris doctoral workshop and a New York conference asking whether a theory of reparative justice can rest on recognition, or whether reparations call for a different framework altogether.",
+   "year": "Call 2023",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2023",
+   "call": "Call 2023",
+   "coinvestigators": "Magali Bessone, Axel Honneth"
+  },
+  "plato": {
+   "title": "Desiring the Good in Plato",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "identity_politics": {
+   "title": "Identity Politics",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "science_policy": {
+   "title": "Science-Based Policy and Democratic Deliberation",
+   "summary": "Two conferences, in New York and Paris, on how scientific findings should inform democratic policy debate, with climate policy as the case study.",
+   "year": "Call 2017",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2017",
+   "call": "Call 2017",
+   "coinvestigators": "Philip Kitcher, Bernard Reber"
+  },
+  "india_visual": {
+   "title": "The Visual Field of Democracy in India",
+   "summary": "Studies politics as a visual field (spectacle, ritual, architecture and public imagery) and its role in shaping public opinion in Indian democracy.",
+   "year": "Call 2012",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2012",
+   "call": "Call 2012",
+   "coinvestigators": "Sudipta Kaviraj, Christophe Jaffrelot"
+  },
+  "documentary": {
+   "title": "Part I. Research in \"Art Documentaire\" / Documentary Art: Challenges to Politics and Aesthetics",
+   "summary": "A four-week joint teaching and workshop program on documentary practice, media analysis and digital tools in research on social marginalization.",
+   "year": "Call 2017",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2017",
+   "call": "Call 2017",
+   "coinvestigators": "Jane Gaines, Aline Caillet"
+  },
+  "time": {
+   "title": "The Implications of Time: Time and Temporalities in Medieval Artistic and Musical Culture",
+   "summary": "An international workshop for graduate students on how time is expressed in medieval art, music and theatre, extending the Paris 1–Columbia collaboration to Princeton.",
+   "year": "Call 2019",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2019",
+   "call": "Call 2019",
+   "coinvestigators": "Susan Boynton, Beatrice Kitzinger, Anne-Orange Poilpré, Jamie Reuland"
+  },
+  "migration": {
+   "title": "Migration and Citizenship in the U.S. and Europe: Transnational Challenges Then and Now",
+   "summary": "A graduate course co-designed and co-taught by Mae Ngai (Columbia) and Riva Kastoryano (Sciences Po), offered simultaneously in New York and Paris by videoconference.",
+   "year": "Calls 2012 and 2021",
+   "outcomes": [
+    {
+     "label": "Call 2012 project page (first grant for this course)",
+     "url": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2012",
+     "kind": "alliance"
+    }
+   ],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2021",
+   "call": "Call 2021",
+   "coinvestigators": "Mae Ngai, Riva Kastoryano"
+  },
+  "industrial_policy": {
+   "title": "Comparing the Political Economies of Contemporary Industrial Policymaking in the Federal US and the Federalizing EU",
+   "summary": "Compares recent US and EU industrial policy in chips, AI and green technology, focusing on how differences in federal structure and administrative capacity shape the pursuit of technological sovereignty.",
+   "year": "Call 2023",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2023",
+   "call": "Call 2023",
+   "coinvestigators": "Matthias Thiemann, Josh Whitford"
+  },
+  "refugees": {
+   "title": "Exiled Memory, Memories of Exile: Cambodian, Laotian, and Vietnamese Refugees in France and the US 1975–2025",
+   "summary": "Fifty years on, compares the experiences and memory-making of Southeast Asian refugees and their descendants in France and the United States, through twin conferences and a publication.",
+   "year": "Call 2024",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2024",
+   "call": "Call 2024",
+   "coinvestigators": "Hélène Le Bail, Duy Linh Tu, Khatharya Um"
+  },
+  "armed_violence": {
+   "title": "A Thriving Economy Amid Armed Violence",
+   "summary": "Examines how Mexico's economy has grown despite extreme violence, looking at how criminal groups shape legal industries from mining to tourism, through conferences in New York and Mexico City in 2025 and 2026.",
+   "year": "Call 2024",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2024",
+   "call": "Call 2024",
+   "coinvestigators": "Claudio Lomnitz, Adam Baczko, Adèle Blazquez"
+  },
+  "hegemony": {
+   "title": "Hegemony and Transatlantic Relations",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "colonialisms": {
+   "title": "Colonialisms and Imperialisms: Comparisons",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "elites": {
+   "title": "Elites Research Network",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "africa_glob": {
+   "title": "Globalization and Politics in Africa",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "criminal_gov": {
+   "title": "Conference on Criminal Governance in Comparative Perspective",
+   "summary": "A conference of junior and senior scholars proposing new theoretical and comparative frameworks for criminal governance, with papers intended for an edited volume or special issue.",
+   "year": "Call 2017",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2017",
+   "call": "Call 2017",
+   "coinvestigators": "Eduardo Moncada, Laurent Fourchard, Laurent Gayer"
+  },
+  "public_finance": {
+   "title": "Public Authority and Finance",
+   "summary": "Continues a 2017 Paris conference on the scale and scope of financial deregulation and re-regulation, combining economics, law, political science, geography and history.",
+   "year": "Call 2017",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2017",
+   "call": "Call 2017",
+   "coinvestigators": "Sharyn O'Halloran, Pierre-Charles Pradier, Nicholas Sowels"
+  },
+  "euro_politics": {
+   "title": "European Politics in a Comparative Perspective",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "human_rights": {
+   "title": "Human Rights and Economic Globalization",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "punjab": {
+   "title": "Punjab at the Limits of History",
+   "summary": "A two-day workshop building a transatlantic network of scholars and graduate students working on Punjab, with participants from India, Pakistan, the US and France.",
+   "year": "Call 2019",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2019",
+   "call": "Call 2019",
+   "coinvestigators": "Katherine Ewing, Christophe Jaffrelot, Rajbir Judge"
+  },
+  "ethno_religious": {
+   "title": "Ethno-Religious Identity and Politics in the Middle East and South Asia",
+   "summary": "A co-taught course by Karen Barkey (Columbia) and Christophe Jaffrelot (Sciences Po) comparing religion and politics across India, Pakistan, Turkey, Syria, Lebanon and Egypt; the pair also led a joint project on shared religious sites.",
+   "year": "Call 2014",
+   "outcomes": [
+    {
+     "label": "Related book: Choreographies of Shared Sacred Sites (Barkan & Barkey, Columbia UP), linked to Barkey and Jaffrelot’s 2015 shared religious sites grant",
+     "url": "https://ircpl.org/media/book-series/featured-publication/",
+     "kind": "publication"
+    }
+   ],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2014",
+   "call": "Call 2014",
+   "coinvestigators": "Karen Barkey, Christophe Jaffrelot"
+  },
+  "populism": {
+   "title": "Populism in America and the Middle East: Ethical and Religious Dimensions",
+   "summary": "Scholars, journalists, officials and religious leaders compare how religious and ethical claims fuel populist movements, through conferences in Amman and New York.",
+   "year": "Call 2017",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2017",
+   "call": "Call 2017",
+   "coinvestigators": "Katherine Pratt Ewing, Alain Dieckhoff"
+  },
+  "ngos": {
+   "title": "French and American NGOs",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "pakistan": {
+   "title": "Pakistan: The Most Dangerous Decade",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "secularism": {
+   "title": "Diverse Models of Secularism",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "gig": {
+   "title": "Occupational Identity and the Gig Economy",
+   "summary": "Studies occupational identity in non-standard work, using arts-industry data as a first case, through workshops in New York and Paris.",
+   "year": "Call 2018",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2018",
+   "call": "Call 2018",
+   "coinvestigators": "Jennifer C. Lena, Léonie Hénaut"
+  },
+  "cities": {
+   "title": "Demography, Technological Change, Inequality and the Internal Structure of Cities",
+   "summary": "A conference on where people, jobs and firms locate within cities and how that shifts after demographic and technological shocks, using long-run geolocated French data.",
+   "year": "Call 2019",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2019",
+   "call": "Call 2019",
+   "coinvestigators": "Donald R. Davis, Nicolas Coeurdacier, Florian Oswald"
+  },
+  "water": {
+   "title": "Leapfrogging Services for Better Access to Water Delivery in Indian Cities: Between Social Affordability and Financial Sustainability",
+   "summary": "Examines new technologies and 'pay as you go' versus prepaid models for water services in Delhi and Bangalore, and their effect on affordability and operators' business models.",
+   "year": "Call 2020",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2020",
+   "call": "Call 2020",
+   "coinvestigators": "Jacqueline Klopp, Hervé Dumez, Akil Amiraly"
+  },
+  "moral_hazard": {
+   "title": "Competitive Equilibrium with Moral Hazard",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "finance_cap": {
+   "title": "Finance, Capitalism and Redistribution of Wealth",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "extraterritorial": {
+   "title": "The Impact of Extraterritorial Application of National Legal Norms on International Business Transactions: A Transatlantic View",
+   "summary": "Two one-day seminars, in New York and Paris, with academics, business people and officials on how extraterritorial regulation affects US–EU trade and investment.",
+   "year": "Call 2017",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2017",
+   "call": "Call 2017",
+   "coinvestigators": "George Bermann, Mathias Audit"
+  },
+  "martingale": {
+   "title": "Martingale Approach",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "multinational": {
+   "title": "Multinational Firms' Production Decisions",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "anti_asian": {
+   "title": "Anti-Asian Hate Compared: Origins, Patterns, and Responses in the US and France",
+   "summary": "A workshop bringing scholars, journalists and community leaders together to compare the post-COVID rise in anti-Asian hate, and the responses to it, in the US and France.",
+   "year": "Call 2021",
+   "outcomes": [
+    {
+     "label": "Related article: When the Geopolitical Threat of China Stokes Bias against Asian Americans (PNAS, 2022), listed in Jennifer Lee's CV",
+     "url": "https://sociology.columbia.edu/sites/sociology.columbia.edu/files/content/Faculty%20CV/JLee%20CV%20October%202024.pdf",
+     "kind": "publication"
+    },
+    {
+     "label": "Interview with Jennifer Lee on anti-AAPI hate (SPLC Hatewatch, 2021)",
+     "url": "https://www.splcenter.org/hatewatch/2021/05/05/anti-aapi-hate-conversation-dr-jennifer-lee",
+     "kind": "news"
+    }
+   ],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2021",
+   "call": "Call 2021",
+   "coinvestigators": "Jennifer Lee, Hélène Le Bail, Ya-Han Chuang"
+  },
+  "frontline": {
+   "title": "The Experience of Frontline Healthcare Workers During the Covid Pandemic in France and the USA",
+   "summary": "A pilot study led by Kristina Orfali and Denis Peschanski (Paris 1) collecting the personal narratives of frontline health workers in both countries, as a step toward a larger comparative study and archive.",
+   "year": "Call 2021",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2021",
+   "call": "Call 2021",
+   "coinvestigators": "Kristina Orfali, Denis Peschanski"
+  },
+  "race_course": {
+   "title": "A Columbia–Sciences Po Joint Course: Race, Discrimination and Racial Inequalities on Both Sides of the Atlantic",
+   "summary": "A co-taught hybrid undergraduate seminar comparing how race, discrimination and inequality work in the US and France, with cross-campus student working groups.",
+   "year": "Call 2022",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2022",
+   "call": "Call 2022",
+   "coinvestigators": "Thomas DiPrete, Marissa Thompson, Mirna Safi"
+  },
+  "women_crisis": {
+   "title": "Women in Times of Crisis: Rethinking the Extraordinary and the Everyday",
+   "summary": "Builds a research network across Columbia, Sciences Po and Paris 1 on how crises (financial, pandemic, political, climate) affect women, and on what treating \"crisis\" as a frame does to that analysis, centred on an online conference in October 2024 followed by policy briefs and research trips.",
+   "year": "Call 2023",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2023",
+   "call": "Call 2023",
+   "coinvestigators": "Angela Greulich, Yasmine Ergas, Nicholas Sowels"
+  },
+  "territories": {
+   "title": "The Territories of the Economy: Rescaling, Circulation",
+   "summary": "A PhD workshop in France pairing Columbia and Sciences Po students in economic sociology and political economy with senior scholars from the other institution.",
+   "year": "Call 2014",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2014",
+   "call": "Call 2014",
+   "coinvestigators": "Josh Whitford, Patrick Le Galès"
+  },
+  "antiracism": {
+   "title": "Transatlantic World History Project to Combat Racism and Antisemitism",
+   "summary": "A four-day summer forum training French and US history teachers to use world history to address racism, antisemitism and other forms of prejudice in the classroom.",
+   "year": "Call 2020",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2020",
+   "call": "Call 2020",
+   "coinvestigators": "Sandra Schmidt, Laura Hobson Faure"
+  },
+  "artisanal": {
+   "title": "Artisanal Modes of Writing, Drawing, and Modeling, 1400–1830",
+   "summary": "A working group and two joint seminars on the writings artisans produced about their craft, challenging the idea that craft knowledge was never written down.",
+   "year": "Call 2020",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2020",
+   "call": "Call 2020",
+   "coinvestigators": "Pamela H. Smith, Valérie Nègre"
+  },
+  "mali": {
+   "title": "The Vagaries of Praetorianism in Mali: Military and Civilian Regimes Amidst Foreign Intervention",
+   "summary": "Two conferences (Paris, then New York) on Mali's recent coups, military rule, and the role of international organizations in governing the country.",
+   "year": "Call 2021",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2021",
+   "call": "Call 2021",
+   "coinvestigators": "Adam Baczko, Gilles Dorronsoro, Gregory Mann"
+  },
+  "silicosis": {
+   "title": "Conference on Silicosis: Industrial and Social Origins of Disease",
+   "summary": "A small conference bringing David Rosner and Gerald Markowitz (Columbia) together with Paul-André Rosental (Sciences Po) to coordinate their research on the global history of silicosis.",
+   "year": "Call 2012",
+   "outcomes": [
+    {
+     "label": "Book: Silicosis: A World History, ed. Paul-André Rosental, with a chapter by Markowitz & Rosner (Johns Hopkins UP, 2017)",
+     "url": "https://press.jhu.edu/books/title/11359/silicosis",
+     "kind": "publication"
+    }
+   ],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2012",
+   "call": "Call 2012",
+   "coinvestigators": "David Rosner, Gerald Markowitz, Paul-André Rosental"
+  },
+  "courts": {
+   "title": "Comparing Inside the Courts: Comparative Law Departments Working in Supreme and Constitutional Courts",
+   "summary": "Maps the comparative-law services working inside constitutional and supreme courts worldwide, and builds a network around best practices for using foreign law.",
+   "year": "Call 2018",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2018",
+   "call": "Call 2018",
+   "coinvestigators": "Jamal Greene, Eleonora Bottini"
+  },
+  "climate_risks": {
+   "title": "Climate Change Risks: Innovative Legal Tools and Policies",
+   "summary": "Joint Columbia–Sorbonne law seminars on legal tools for climate risk, including litigation, risk assessment and corporate disclosure, led by LL.M. and PhD students.",
+   "year": "Call 2019",
+   "outcomes": [
+    {
+     "label": "Can the Courts Combat Climate Change? (topic match; please confirm guests)",
+     "url": "https://visavis.podcasts.library.columbia.edu/podcast/can-the-courts-combat-climate-change/",
+     "kind": "podcast"
+    }
+   ],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2019",
+   "call": "Call 2019",
+   "coinvestigators": "Michael Burger, Luca d'Ambrosio, Michael Gerrard, Marta Torre-Schaub"
+  },
+  "online_platforms": {
+   "title": "Comparative Aspects of Online Platforms Regulation: the United States and the European Union",
+   "summary": "Two symposia, at Paris 1 and Columbia, on whether EU platform rules (DSA, DMA) act extraterritorially, where they conflict with US law, and on regulating the attention economy.",
+   "year": "Call 2022",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2022",
+   "call": "Call 2022",
+   "coinvestigators": "Jane Ginsburg, Édouard Treppoz, Célia Zolynski"
+  },
+  "climate_ethics": {
+   "title": "Climate Ethics: Negotiating Values in Climate Science for Adaptation",
+   "summary": "A workshop bringing climate scientists, social scientists and humanists together on the ethical questions raised by climate science for adaptation, such as event attribution, storylines and climate services.",
+   "year": "Call 2023",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2023",
+   "call": "Call 2023",
+   "coinvestigators": "Aglaé Jézéquel, Adam Sobel"
+  },
+  "climate_litigation": {
+   "title": "Climate Change Litigation: A Tool for Climate Governance? Comparing Global North and Global South",
+   "summary": "Joint Columbia–Sorbonne law seminars comparing climate litigation across France, the EU, the US, Latin America and Africa.",
+   "year": "Call 2022",
+   "outcomes": [
+    {
+     "label": "Can the Courts Combat Climate Change? (topic match; please confirm guests)",
+     "url": "https://visavis.podcasts.library.columbia.edu/podcast/can-the-courts-combat-climate-change/",
+     "kind": "podcast"
+    }
+   ],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2022",
+   "call": "Call 2022",
+   "coinvestigators": "Michael Burger, Michael Gerrard, Marta Torre-Schaub"
+  },
+  "resettlement": {
+   "title": "Developing a Research Agenda for Climate Change Resettlement",
+   "summary": "A multidisciplinary transatlantic team setting research priorities on government-led resettlement driven by climate impacts and by land used for mitigation and adaptation.",
+   "year": "Call 2012",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2012",
+   "call": "Call 2012",
+   "coinvestigators": "Michael Gerrard, François Gemenne"
+  },
+  "hiv_blood": {
+   "title": "Crisis in Context: Sagas of HIV Blood Contamination in the US and France",
+   "summary": "Compares why HIV contamination of the blood supply became a major political crisis in France but not in the United States.",
+   "year": "Call 2018",
+   "outcomes": [
+    {
+     "label": "Book: The Social Production of Crisis (2023), listed on Constance Nathanson's emerita profile",
+     "url": "https://professorsemeritus.columbia.edu/node/661",
+     "kind": "publication"
+    },
+    {
+     "label": "Nathanson awarded a Guggenheim Fellowship for this research (Mailman School, 2019)",
+     "url": "https://www.publichealth.columbia.edu/news/constance-nathanson-awarded-guggenheim-foundation-fellowship",
+     "kind": "news"
+    },
+    {
+     "label": "Interview: why the blood crisis played out differently in France (CUIMC News)",
+     "url": "https://www.cuimc.columbia.edu/news/sociologist-constance-nathanson-awarded-guggenheim-fellowship",
+     "kind": "news"
+    }
+   ],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2018",
+   "call": "Call 2018",
+   "coinvestigators": "Constance A. Nathanson, Henri Bergeron"
+  },
+  "ph_france": {
+   "title": "Public Health Policy in France",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "disaster": {
+   "title": "Disaster and Innovation in Organizations",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "lead": {
+   "title": "The Evolution of Environmental Regulation: Lessons from a Hundred Years of Lead-Exposure Abatement in France and the US",
+   "summary": "Two hybrid workshops, in Paris and New York, comparing a century of lead regulation in both countries, intended to lead to a review paper on the history of lead policy.",
+   "year": "Call 2022",
+   "outcomes": [
+    {
+     "label": "Workshop 1: Plomb sur la ville, Paris, 17 May 2024 (Paris 1 Chaire Santé-SHS)",
+     "url": "https://sante-shs.pantheonsorbonne.fr/workshop-plomb-ville.-toxicite-mesures-regulations.-17-mai-2024",
+     "kind": "event"
+    },
+    {
+     "label": "Workshop 2 programme: Reducing lead exposure, 30 Oct 2024, Maison Française (PDF)",
+     "url": "https://sante-shs.pantheonsorbonne.fr/sites/default/files/2024-10/alliance_30oct24_final.pdf",
+     "kind": "event"
+    },
+    {
+     "label": "After the Fire: Lead Pollution and Notre Dame, with Lex van Geen and Judith Rainhorn",
+     "url": "https://visavis.podcasts.library.columbia.edu/?p=269",
+     "kind": "podcast"
+    },
+    {
+     "label": "Related paper: Fallout of lead over Paris from the 2019 Notre-Dame fire (GeoHealth, 2020)",
+     "url": "https://doi.org/10.1029/2020GH000279",
+     "kind": "publication"
+    }
+   ],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2022",
+   "call": "Call 2022",
+   "coinvestigators": "Alexander van Geen, Judith Rainhorn"
+  },
+  "soil_moisture": {
+   "title": "Soil Moisture–Precipitation Feedbacks",
+   "summary": null,
+   "year": null,
+   "outcomes": [
+    {
+     "label": "Can AI Help Save the Planet?, with Pierre Gentine",
+     "url": "https://visavis.podcasts.library.columbia.edu/?p=236",
+     "kind": "podcast"
+    }
+   ],
+   "page": ""
+  },
+  "sinergi": {
+   "title": "SiNERGI: Sustainable Cities Network of Education and Research for Social Good with AI",
+   "summary": "Builds a Columbia–École Polytechnique education and research network on smart cities and climate policy, with lectures and workshops on how AI and urban data can support sustainable, affordable mobility.",
+   "year": "Call 2024",
+   "outcomes": [
+    {
+     "label": "Will AI Revolutionize Transport? (topic match; please confirm guests)",
+     "url": "https://visavis.podcasts.library.columbia.edu/podcast/will-ai-revolutionize-transport/",
+     "kind": "podcast"
+    }
+   ],
+   "page": "https://alliance.columbia.edu/content/joint-projects-grant-recipients-call-2024",
+   "call": "Call 2024",
+   "coinvestigators": "Sharon Di, Patricia Crifo"
+  },
+  "multiple_risks": {
+   "title": "Multiple Risks in Sustainable Development",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "charge_transfer": {
+   "title": "Charge Transfer Physics in Correlated Electron Systems",
+   "summary": "Columbia and École Polytechnique physicists apply Polytechnique's charge self-consistent DFT+DMFT methods to Columbia's discovery of charge-transfer effects in nickel-oxide heterostructures.",
+   "year": "Call 2012",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2012",
+   "call": "Call 2012",
+   "coinvestigators": "Andrew Millis, Antoine Georges"
+  },
+  "ultrafast": {
+   "title": "Electronic Band Structures and Ultrafast Carrier Dynamics in Quantum Materials",
+   "summary": "Uses angle-resolved photoemission (ARPES and time-resolved ARPES) to map band structure and dynamics in 2D heterostructures and super-atom solids made at Columbia's MRSEC.",
+   "year": "Call 2017",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2017",
+   "call": "Call 2017",
+   "coinvestigators": "Xiaoyang Zhu, Luca Perfetti"
+  },
+  "imaging": {
+   "title": "Mathematical Modeling in Multi-Physics Imaging",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "membranes": {
+   "title": "Biological Membrane/Water Interfaces",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "materials": {
+   "title": "Generating Renewable Eco-Friendly Materials",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "biofuel": {
+   "title": "Improved Biofuel Cells",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "valves": {
+   "title": "Engineering Pediatric Cardiac Valves that Grow",
+   "summary": "David Kalfa's lab (Columbia) runs the tissue-engineering and animal studies while Abdul Barakat's group (École Polytechnique) models and mechanically tests the hybrid valves.",
+   "year": "Call 2019",
+   "outcomes": [
+    {
+     "label": "Mending Hearts, with David Kalfa and Abdul Barakat",
+     "url": "https://visavis.podcasts.library.columbia.edu/?p=124",
+     "kind": "podcast"
+    },
+    {
+     "label": "Young Researchers Who Mend Broken Hearts",
+     "url": "https://visavis.podcasts.library.columbia.edu/podcast/young-researchers-who-mend-broken-hearts/",
+     "kind": "podcast"
+    },
+    {
+     "label": "A Heart Valve That Grows (Columbia Irving Medical Center news, 2023)",
+     "url": "https://www.cuimc.columbia.edu/node/27397",
+     "kind": "news"
+    }
+   ],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2019",
+   "call": "Call 2019",
+   "coinvestigators": "David Kalfa, Abdul I. Barakat"
+  },
+  "physics_ml": {
+   "title": "Re-discovering (Astro)Physics Laws Using Machine Learning",
+   "summary": "Uses deep neural networks to rediscover known laws in quantum physics and astrophysics from experimental data, as a proof of concept for discovering new ones.",
+   "year": "Call 2018",
+   "outcomes": [],
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2018",
+   "call": "Call 2018",
+   "coinvestigators": "Nakul Verma, Michalis Vazirgiannis"
+  },
+  "maternal": {
+   "title": "Maternal Mortality",
+   "summary": null,
+   "year": null,
+   "outcomes": [],
+   "page": ""
+  },
+  "blame_regulation": {
+   "title": "Blame and Regulation: Psychological and Social Transformation",
+   "summary": "A workshop asking whether blame, as it operates between individuals, within institutions and in wider social systems, can be understood with a single theory, and what that means for responsibility, agency and how individuals and institutions correct themselves.",
+   "year": "Call 2019",
+   "call": "Call 2019",
+   "page": "https://alliance.columbia.edu/content/joint-projects-recipients-call-2019",
+   "coinvestigators": "Carol Rovane, Laurent Jaffro",
+   "outcomes": []
+  }
+ },
+ "aliases": {
+  "Léon Vaudoyer": "vaudoyer",
+  "Beyond National History": "national_history",
+  "Invisible Knowledge in Early Modern Europe": "invisible_knowledge",
+  "Beaumarchais & America": "beaumarchais",
+  "Lives of Early Modern Librarians": "librarians",
+  "Museum Studies New Programs": "museum",
+  "Competition in Medieval Europe": "medieval_comp",
+  "Scribbles and Scribbling": "scribbles",
+  "Social Sciences and the Danger of Literature": "danger_lit",
+  "Post World War II": "postwar",
+  "Digging Up the Cultural Roots": "digging",
+  "Philosophy of Blame": "blame",
+  "Subjectivity in the Post-Cinema Age": "postcinema",
+  "\"What is an Author?\"": "author",
+  "\"What is an Author?\" (AI & Authorship)": "author",
+  "Recognition and Reparations": "recognition",
+  "Desiring the Good in Plato": "plato",
+  "Identity Politics": "identity_politics",
+  "Science-Based Policy and Democratic Deliberation": "science_policy",
+  "Visual Field of Democracy in India": "india_visual",
+  "Documentary Art": "documentary",
+  "The Implications of Time": "time",
+  "Migration and Citizenship in the U.S. and Europe": "migration",
+  "Migration and Citizenship in the US and Europe": "migration",
+  "Political Economies of Contemporary Industrial Policymaking": "industrial_policy",
+  "Cambodian, Laotian and Vietnamese Refugees": "refugees",
+  "Thriving Economy Amid Armed Violence": "armed_violence",
+  "Hegemony and Transatlantic Relations": "hegemony",
+  "Colonialisms and Imperialisms: Comparisons": "colonialisms",
+  "Elites Research Network": "elites",
+  "Globalization and Politics in Africa": "africa_glob",
+  "Conference on Criminal Governance": "criminal_gov",
+  "Public Authority and Finance": "public_finance",
+  "European Politics in a Comparative Perspective": "euro_politics",
+  "Human Rights and Economic Globalization": "human_rights",
+  "Punjab at the Limits of History": "punjab",
+  "Ethno-religious Identity at Columbia University": "ethno_religious",
+  "Populism in America and the Middle East": "populism",
+  "French and American NGOs": "ngos",
+  "Pakistan: The Most Dangerous Decade": "pakistan",
+  "Diverse Models of Secularism": "secularism",
+  "Occupational Identity and the Gig Economy": "gig",
+  "Demography and Cities": "cities",
+  "Water Delivery in Indian Cities": "water",
+  "Competitive Equilibrium with Moral Hazard": "moral_hazard",
+  "Finance, Capitalism and Redistribution": "finance_cap",
+  "Finance, Capitalism and Redistribution of Wealth": "finance_cap",
+  "Extraterritorial Application of National Legal Norms": "extraterritorial",
+  "Martingale Approach": "martingale",
+  "Multinational Firms' Production Decisions": "multinational",
+  "Anti-Asian Hate Compared": "anti_asian",
+  "Frontline Healthcare Workers During the Covid Pandemic": "frontline",
+  "Joint Course: Race, Discrimination": "race_course",
+  "Women in Times of Crisis": "women_crisis",
+  "Territories of the Economy": "territories",
+  "Combatting Racism and Antisemitism": "antiracism",
+  "Modes of Writing, Drawing, and Modeling": "artisanal",
+  "Military and Civilian Regimes Amidst Foreign Intervention": "mali",
+  "Silicosis": "silicosis",
+  "Comparing Inside the Courts": "courts",
+  "Climate Change Risks": "climate_risks",
+  "Comparative Aspects of Online Platforms": "online_platforms",
+  "Comparative Aspects of Online Platforms (AI/Law)": "online_platforms",
+  "Climate Ethics": "climate_ethics",
+  "Climate Ethics: Negotiating Values": "climate_ethics",
+  "Climate Change Litigation": "climate_litigation",
+  "Research Agenda for Climate Change Resettlement": "resettlement",
+  "HIV Blood Contamination": "hiv_blood",
+  "Public Health Policy in France": "ph_france",
+  "Disaster and Innovation in Organizations": "disaster",
+  "The Evolution of Environmental Regulation": "lead",
+  "Environmental Regulation": "lead",
+  "Soil Moisture–Precipitation Feedbacks": "soil_moisture",
+  "Soil Moisture": "soil_moisture",
+  "SiNERGI: Sustainable Cities Network": "sinergi",
+  "SiNERGI: Sustainable Cities Network with AI": "sinergi",
+  "Sustainable Cities Network": "sinergi",
+  "Multiple Risks in Sustainable Development": "multiple_risks",
+  "Charge Transfer Physics in Correlated Electron Systems": "charge_transfer",
+  "Charge Transfer Physics": "charge_transfer",
+  "Ultrafast Carrier Dynamics": "ultrafast",
+  "Mathematical Modeling in Multi-Physics Imaging": "imaging",
+  "Multi-Physics Imaging": "imaging",
+  "Biological Membrane/Water Interfaces": "membranes",
+  "Biological Membrane Interfaces": "membranes",
+  "Generating Renewable Eco-Friendly Materials": "materials",
+  "Biomedical Engineering": "materials",
+  "Improved Biofuel Cells": "biofuel",
+  "Biofuel Cells": "biofuel",
+  "Engineering Pediatric Cardiac Valves that Grow": "valves",
+  "Pediatric Cardiac Valves": "valves",
+  "Re-discovering (Astro)Physics Laws Using Machine Learning": "physics_ml",
+  "Re-discovering (Astro)Physics Laws": "physics_ml",
+  "Maternal Mortality": "maternal",
+  "Blame and Regulation": "blame_regulation"
+ }
+};
+
+// ── PANEL LOGIC ──────────────────────────────────────────────────────────────
+
+const CATEGORY_META = {
+  center: { label: 'All Fields', color: '#e85d9c' },
+  stem: { label: 'STEM', color: '#4fa3f7' },
+  stemSub: { label: 'STEM · Subfield', color: '#7fc8fb' },
+  social: { label: 'Social Sciences', color: '#f4a24a' },
+  socialSub: { label: 'Social Sciences · Subfield', color: '#f9c47e' },
+  humanities: { label: 'Humanities', color: '#a78bfa' },
+  humanitiesSub: { label: 'Humanities · Subfield', color: '#c4b5fd' },
+};
+
+const GROUPS = {
+  center: null, // everything
+  stem: n => n.startsWith('stem'),
+  social: n => n.startsWith('soc_'),
+  human: n => n.startsWith('hum_'),
+};
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Merge raw PROJECT_DATA rows into one entry per project, collecting every PI.
+function projectsFor(nodeId) {
+  let rows;
+  if (nodeId in GROUPS) {
+    const test = GROUPS[nodeId];
+    rows = Object.entries(PROJECT_DATA).filter(([k]) => !test || test(k)).flatMap(([, v]) => v);
+  } else {
+    rows = PROJECT_DATA[nodeId] || [];
+  }
+  const merged = new Map();
+  rows.forEach(r => {
+    const key = LINKS.aliases[r.title] || r.title;
+    if (!merged.has(key)) merged.set(key, { key, pis: [] });
+    const m = merged.get(key);
+    if (!m.pis.includes(r.pi)) m.pis.push(r.pi);
+  });
+  return [...merged.values()].map(m => {
+    const info = LINKS.projects[m.key] || { title: m.key, outcomes: [] };
+    return { ...m, ...info };
+  }).sort((a, b) => a.title.localeCompare(b.title));
+}
+
+function piLink(name) {
+  const p = LINKS.people[name];
+  if (p) {
+    const main = `<a class="pi-link${p.alliance ? ' alliance' : ''}" href="${esc(p.url)}" target="_blank" rel="noopener" title="${esc(p.source)}">${esc(name)}</a>`;
+    const alt = p.alt ? ` <a class="pi-alt" href="${esc(p.alt)}" target="_blank" rel="noopener" title="${esc(p.altSource || '')}">faculty page</a>` : '';
+    return `<span class="pi-entry">${main}${alt}</span>`;
+  }
+  const q = encodeURIComponent(`"${name}" professor`);
+  return `<a class="pi-link unverified" href="https://www.google.com/search?q=${q}" target="_blank" rel="noopener" title="No verified profile yet: opens a web search">${esc(name)}</a>`;
+}
+
+const KIND_LABEL = { alliance: 'Alliance', publication: 'Publication', news: 'News', podcast: 'Podcast', event: 'Event' };
+
+function cardHTML(p, i) {
+  const surnames = p.pis.map(n => n.split(' ').pop()).join(' ');
+  const shortTitle = p.title.replace(/["“”]/g, '').split(':')[0];
+  const scholar = 'https://scholar.google.com/scholar?q=' + encodeURIComponent(`${surnames} ${shortTitle}`);
+  const news = 'https://www.google.com/search?q=' + encodeURIComponent(`"${shortTitle}" ${surnames} Columbia`);
+  const alliance = 'https://www.google.com/search?q=' + encodeURIComponent(`site:alliance.columbia.edu "${shortTitle}"`);
+  const outcomes = (p.outcomes || []).map(o => `
+      <li><span class="kind ${esc(o.kind)}">${KIND_LABEL[o.kind] || 'Link'}</span><a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.label)}</a></li>`).join('');
+  const detailId = 'detail-' + i;
+  return `
+    <button class="card-toggle" aria-expanded="false" aria-controls="${detailId}">
+      <div class="project-title">${esc(p.title)}</div>
+      ${p.year ? `<div class="project-meta">${esc(p.year)}</div>` : ''}
+    </button>
+    <div class="project-pi">${p.pis.map(piLink).join('')}</div>
+    <div class="card-detail" id="${detailId}" hidden>
+      <p class="project-summary${p.summary ? '' : ' empty'}">${p.summary ? esc(p.summary) : 'No public project description found yet. Try the searches below, or add a summary from the grant file.'}</p>
+      ${p.summary ? '<p class="summary-source">Summary based on the Alliance\'s joint-project records.</p>' : ''}
+      ${p.coinvestigators ? `<p class="coinv"><span>Investigators:</span> ${esc(p.coinvestigators)}</p>` : ''}
+      ${p.page ? `<div class="search-links"><a class="primary" href="${esc(p.page)}" target="_blank" rel="noopener">${p.call ? esc(p.call) + ' project page' : 'Project page'} on the Alliance website</a></div>` : ''}
+      ${outcomes ? `<div class="link-group">Outcomes and coverage</div><ul class="outcome-list">${outcomes}</ul>` : ''}
+      <div class="link-group">Look for more</div>
+      <div class="search-links">
+        <a href="${scholar}" target="_blank" rel="noopener">Publications on Google Scholar</a>
+        <a href="${news}" target="_blank" rel="noopener">News and web mentions</a>
+        <a href="${alliance}" target="_blank" rel="noopener">Search the Alliance site</a>
+      </div>
+    </div>`;
+}
+
+let currentProjects = [];
+
+function openPanel(node) {
+  const panel = document.getElementById('detail-panel');
+  const tag = document.getElementById('panel-category-tag');
+  const title = document.getElementById('panel-title');
+  const subtitle = document.getElementById('panel-subtitle');
+  const projectsEl = document.getElementById('panel-projects');
+  const emptyEl = document.getElementById('panel-empty');
+  const filter = document.getElementById('panel-filter');
+
+  const meta = CATEGORY_META[node.type] || { label: 'Research', color: '#888' };
+  currentProjects = projectsFor(node.id);
+  panel.style.setProperty('--accent', meta.color);
+
+  tag.textContent = meta.label;
+  tag.style.background = meta.color + '22';
+  tag.style.color = meta.color;
+  tag.style.border = '1px solid ' + meta.color + '44';
+
+  title.textContent = node.label.replace('\n', ' ');
+  title.style.color = meta.color;
+  const withOutcomes = currentProjects.filter(p => (p.outcomes || []).some(o => o.kind !== 'alliance')).length;
+  subtitle.textContent = currentProjects.length
+    ? `${currentProjects.length} project${currentProjects.length !== 1 ? 's' : ''}${withOutcomes ? `, ${withOutcomes} with linked outcomes` : ''}. Click a project to expand it.`
+    : nodeInfo[node.id]?.desc || '';
+
+  filter.value = '';
+  filter.style.display = currentProjects.length > 6 ? 'block' : 'none';
+  projectsEl.innerHTML = '';
+  document.getElementById('panel-noresults').style.display = 'none';
+
+  if (currentProjects.length === 0) {
+    emptyEl.style.display = 'block';
+  } else {
+    emptyEl.style.display = 'none';
+    currentProjects.forEach((p, i) => {
+      const card = document.createElement('article');
+      card.className = 'project-card';
+      card.dataset.search = (p.title + ' ' + p.pis.join(' ')).toLowerCase();
+      card.innerHTML = cardHTML(p, i);
+      card.style.borderLeft = `3px solid ${meta.color}55`;
+      const btn = card.querySelector('.card-toggle');
+      btn.addEventListener('click', () => {
+        const open = btn.getAttribute('aria-expanded') === 'true';
+        btn.setAttribute('aria-expanded', String(!open));
+        card.querySelector('.card-detail').hidden = open;
+      });
+      projectsEl.appendChild(card);
+    });
+  }
+
+  panel.classList.add('open');
+  document.getElementById('panel-body').scrollTop = 0;
+}
+
+document.getElementById('panel-filter').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  let shown = 0;
+  document.querySelectorAll('#panel-projects .project-card').forEach(c => {
+    const hit = !q || c.dataset.search.includes(q);
+    c.style.display = hit ? '' : 'none';
+    if (hit) shown++;
+  });
+  document.getElementById('panel-noresults').style.display = shown ? 'none' : 'block';
+});
+
+function closePanel() {
+  document.getElementById('detail-panel').classList.remove('open');
+}
+
+// Close panel on Escape
+window.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+
+
+
+function radius(n, type) {
+  if (type === 'center') return 78;
+  const base = type.includes('Sub') ? 28 : 52;
+  return base + Math.sqrt(n) * 8;
+}
+
+// ── SVG RENDER ───────────────────────────────────────────────────────────────
+
+const svg = document.getElementById('svg');
+const W = window.innerWidth, H = window.innerHeight;
+const CX = W / 2, CY = H / 2;
+
+let viewX = CX, viewY = CY, scale = 0.82;
+
+function worldToScreen(x, y) {
+  return [viewX + x * scale, viewY + y * scale];
+}
+
+let isDragging = false, lastMX = 0, lastMY = 0;
+
+document.getElementById('canvas-wrap').addEventListener('mousedown', e => {
+  isDragging = true;
+  lastMX = e.clientX;
+  lastMY = e.clientY;
+});
+
+window.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  viewX += e.clientX - lastMX;
+  viewY += e.clientY - lastMY;
+  lastMX = e.clientX;
+  lastMY = e.clientY;
+  render();
+});
+
+window.addEventListener('mouseup', () => isDragging = false);
+
+document.getElementById('canvas-wrap').addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.1 : 0.9;
+  scale *= factor;
+  scale = Math.min(3, Math.max(0.2, scale));
+  render();
+}, { passive: false });
+
+function zoom(f) {
+  scale *= f;
+  scale = Math.min(3, Math.max(0.2, scale));
+  render();
+}
+
+function resetView() {
+  viewX = CX; viewY = CY; scale = 0.82;
+  render();
+}
+
+const tooltip = document.getElementById('tooltip');
+
+function showTip(node, sx, sy) {
+  const info = nodeInfo[node.id] || {};
+  const hasProjects = projectsFor(node.id).length > 0;
+  tooltip.innerHTML = `<strong>${node.label.replace('\n', ' ')}</strong>
+    <span>${info.desc || ''}</span>
+    <br><span style="color:#fff;margin-top:6px;display:block">${info.projects} project${info.projects !== 1 ? 's' : ''}</span>
+    ${hasProjects ? '<span style="color:rgba(255,255,255,0.35);font-size:0.7rem;margin-top:4px;display:block">Click to see projects, researchers and outcomes</span>' : ''}`;
+  let tx = sx + 16, ty = sy - 40;
+  if (tx + 250 > W) tx = sx - 260;
+  if (ty < 10) ty = sy + 16;
+  tooltip.style.left = tx + 'px';
+  tooltip.style.top = ty + 'px';
+  tooltip.classList.add('visible');
+}
+
+function hideTip() { tooltip.classList.remove('visible'); }
+
+function render() {
+  svg.innerHTML = '';
+
+  // Definitions
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+
+  // Glow filters
+  const glows = [
+    { id: 'glow-center', color: '#e85d9c' },
+    { id: 'glow-stem', color: '#4fa3f7' },
+    { id: 'glow-social', color: '#f4a24a' },
+    { id: 'glow-human', color: '#a78bfa' },
+  ];
+  glows.forEach(g => {
+    const f = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+    f.setAttribute('id', g.id);
+    f.setAttribute('x', '-50%'); f.setAttribute('y', '-50%');
+    f.setAttribute('width', '200%'); f.setAttribute('height', '200%');
+    const fe = document.createElementNS('http://www.w3.org/2000/svg', 'feDropShadow');
+    fe.setAttribute('dx', '0'); fe.setAttribute('dy', '0');
+    fe.setAttribute('stdDeviation', '12');
+    fe.setAttribute('flood-color', g.color);
+    fe.setAttribute('flood-opacity', '0.6');
+    f.appendChild(fe);
+    defs.appendChild(f);
+  });
+
+  svg.appendChild(defs);
+
+  const nodeMap = {};
+  nodes.forEach(n => nodeMap[n.id] = n);
+
+  // Draw edges
+  edges.forEach(([a, b]) => {
+    const na = nodeMap[a], nb = nodeMap[b];
+    const [x1, y1] = worldToScreen(na.x, na.y);
+    const [x2, y2] = worldToScreen(nb.x, nb.y);
+
+    const col = nb.type.includes('stem') ? COLORS.stem :
+                nb.type.includes('social') || nb.type.includes('Social') ? COLORS.social :
+                nb.type.includes('human') ? COLORS.humanities : COLORS.center;
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.setAttribute('stroke', col);
+    line.setAttribute('stroke-width', a === 'center' ? 3 : 1.5);
+    line.setAttribute('class', 'edge-line');
+    svg.appendChild(line);
+  });
+
+  // Draw nodes
+  nodes.forEach(n => {
+    const [sx, sy] = worldToScreen(n.x, n.y);
+    const r = radius(n.count, n.type) * (n.type === 'center' ? scale : scale);
+
+    const color = COLORS[n.type] || '#888';
+    const glowFilter = n.type === 'center' ? 'url(#glow-center)' :
+                       n.type.includes('stem') ? 'url(#glow-stem)' :
+                       n.type.includes('social') || n.type.includes('Social') ? 'url(#glow-social)' :
+                       'url(#glow-human)';
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'node-circle');
+    g.style.filter = glowFilter;
+
+    // Shadow circle (darker)
+    const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    shadow.setAttribute('cx', sx + 2); shadow.setAttribute('cy', sy + 3);
+    shadow.setAttribute('r', r);
+    shadow.setAttribute('fill', 'rgba(0,0,0,0.4)');
+    g.appendChild(shadow);
+
+    // Main circle
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', sx); circle.setAttribute('cy', sy);
+    circle.setAttribute('r', r);
+
+    // Gradient fill
+    const gradId = 'grad-' + n.id;
+    const grad = document.createElementNS('http://www.w3.org/2000/svg', 'radialGradient');
+    grad.setAttribute('id', gradId);
+    grad.setAttribute('cx', '35%'); grad.setAttribute('cy', '35%');
+    grad.setAttribute('r', '60%');
+    const s1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    s1.setAttribute('offset', '0%');
+    s1.setAttribute('stop-color', lighten(color, 0.4));
+    const s2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    s2.setAttribute('offset', '100%');
+    s2.setAttribute('stop-color', darken(color, 0.25));
+    grad.appendChild(s1); grad.appendChild(s2);
+    defs.appendChild(grad);
+    circle.setAttribute('fill', `url(#${gradId})`);
+    circle.setAttribute('stroke', lighten(color, 0.3));
+    circle.setAttribute('stroke-width', n.type === 'center' ? 3 : 1.5);
+    g.appendChild(circle);
+
+    // Count badge for main categories
+    if ((n.type === 'stem' || n.type === 'social' || n.type === 'humanities') && r > 20) {
+      const badge = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      badge.setAttribute('cx', sx + r * 0.6);
+      badge.setAttribute('cy', sy - r * 0.6);
+      badge.setAttribute('r', r * 0.28);
+      badge.setAttribute('fill', '#0e0e14');
+      badge.setAttribute('stroke', color);
+      badge.setAttribute('stroke-width', '1.5');
+      g.appendChild(badge);
+
+      const badgeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      badgeText.setAttribute('x', sx + r * 0.6);
+      badgeText.setAttribute('y', sy - r * 0.6);
+      badgeText.setAttribute('text-anchor', 'middle');
+      badgeText.setAttribute('dominant-baseline', 'central');
+      badgeText.setAttribute('fill', '#fff');
+      badgeText.setAttribute('font-size', Math.max(9, r * 0.22) + 'px');
+      badgeText.setAttribute('font-family', 'DM Sans, sans-serif');
+      badgeText.setAttribute('font-weight', '700');
+      badgeText.textContent = n.count;
+      badgeText.style.pointerEvents = 'none';
+      g.appendChild(badgeText);
+    }
+
+    // Label
+    const lines = n.label.split('\n');
+    const fontSize = n.type === 'center' ? Math.max(10, r * 0.18) :
+                     n.type.includes('Sub') ? Math.max(8, r * 0.3) :
+                     Math.max(9, r * 0.22);
+
+    if (lines.length === 1) {
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', sx); t.setAttribute('y', sy);
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('dominant-baseline', 'central');
+      t.setAttribute('fill', '#fff');
+      t.setAttribute('font-size', fontSize + 'px');
+      t.setAttribute('font-family', 'DM Sans, sans-serif');
+      t.setAttribute('font-weight', '700');
+      t.setAttribute('letter-spacing', '0.05em');
+      t.style.pointerEvents = 'none';
+      t.textContent = lines[0];
+      g.appendChild(t);
+    } else {
+      const lineH = fontSize * 1.3;
+      lines.forEach((line, i) => {
+        const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        const offsetY = (i - (lines.length - 1) / 2) * lineH;
+        t.setAttribute('x', sx); t.setAttribute('y', sy + offsetY);
+        t.setAttribute('text-anchor', 'middle');
+        t.setAttribute('dominant-baseline', 'central');
+        t.setAttribute('fill', '#fff');
+        t.setAttribute('font-size', fontSize + 'px');
+        t.setAttribute('font-family', 'DM Sans, sans-serif');
+        t.setAttribute('font-weight', '700');
+        t.setAttribute('letter-spacing', '0.05em');
+        t.style.pointerEvents = 'none';
+        t.textContent = line;
+        g.appendChild(t);
+      });
+    }
+
+    g.addEventListener('mouseenter', e => showTip(n, sx, sy));
+    g.addEventListener('mouseleave', hideTip);
+    g.addEventListener('click', e => {
+      e.stopPropagation();
+      hideTip();
+      openPanel(n);
+    });
+
+    svg.appendChild(g);
+  });
+}
+
+function lighten(hex, amt) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  const toHex = v => Math.min(255, Math.round(v)).toString(16).padStart(2,'0');
+  return '#' + toHex(r + (255-r)*amt) + toHex(g + (255-g)*amt) + toHex(b + (255-b)*amt);
+}
+
+function darken(hex, amt) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  const toHex = v => Math.max(0, Math.round(v)).toString(16).padStart(2,'0');
+  return '#' + toHex(r*(1-amt)) + toHex(g*(1-amt)) + toHex(b*(1-amt));
+}
+
+render();
+window.addEventListener('resize', () => { resetView(); });
+</script>
+</body>
+</html>
